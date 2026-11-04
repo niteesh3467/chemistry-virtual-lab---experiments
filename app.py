@@ -229,28 +229,22 @@ elif page == "Titration I - Standardization":
             "Endpoint reached! A permanent reddish-brown colour appears."
         )
 
+ 
 # --------------------------------
-# TITRATION II
+# TITRATION II - ANIMATED SIMULATOR
 # --------------------------------
 
 elif page == "Titration II - Chloride Estimation":
 
-    st.title("Titration II - Estimation of Chloride")
+    import time
 
-    st.subheader("Principle")
+    st.title("🧪 Advanced Chloride Titration Simulator")
 
-    st.write("""
-    Chloride ions react with silver ions to form
-    silver chloride precipitate.
+    st.write(
+        "Estimate chloride content using Mohr's method."
+    )
 
-    Ag+ + Cl- → AgCl
-
-    At the endpoint, excess silver ions react with
-    chromate indicator to produce reddish-brown
-    silver chromate.
-    """)
-
-    st.subheader("Observation Values")
+    st.subheader("Experiment Setup")
 
     sample_volume = st.number_input(
         "Water sample volume (mL)",
@@ -258,72 +252,164 @@ elif page == "Titration II - Chloride Estimation":
         value=50.0
     )
 
-    titre = st.number_input(
-        "AgNO3 titre value (mL)",
-        min_value=0.0,
-        value=7.5
-    )
-
-    blank = st.number_input(
-        "Blank titre value (mL)",
-        min_value=0.0,
-        value=0.0
-    )
-
     normality = st.number_input(
-        "Standardized AgNO3 Normality",
+        "AgNO3 Normality",
         min_value=0.00001,
         value=float(st.session_state.agno3_n),
         format="%.5f"
     )
 
-    if st.button("Calculate Chloride Content"):
-
-        corrected_titre = titre - blank
-
-        if corrected_titre < 0:
-            st.error("Titre value cannot be less than blank value.")
-
-        else:
-            chloride = (
-                corrected_titre
-                * normality
-                * 35.45
-                * 1000
-            ) / sample_volume
-
-            st.session_state.chloride_result = chloride
-
-            st.success(
-                f"Chloride Content = {chloride:.2f} mg/L"
-            )
-
-            st.write("Calculation formula:")
-
-            st.latex(
-                r"Cl^- (mg/L) = "
-                r"\frac{(A-B)\times N\times 35.45\times 1000}"
-                r"{V}"
-            )
+    endpoint_volume = st.number_input(
+        "Expected endpoint volume (mL)",
+        min_value=0.1,
+        value=7.5
+    )
 
     st.markdown("---")
 
-    st.subheader("Virtual Titration Simulator")
+    # SIMULATOR STATE
 
-    added = st.slider(
-        "Volume of AgNO3 added (mL)",
-        min_value=0.0,
-        max_value=15.0,
-        value=0.0,
-        step=0.1,
-        key="chloride_sim"
-    )
+    if "added_volume" not in st.session_state:
+        st.session_state.added_volume = 0.0
 
-    if added < titre:
-        st.info("Titration in progress...")
+    if "titration_started" not in st.session_state:
+        st.session_state.titration_started = False
+
+    volume = st.session_state.added_volume
+
+    progress = min(volume / endpoint_volume, 1.0)
+
+    st.subheader("🔬 Virtual Laboratory")
+
+    # BURETTE VISUAL
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        st.markdown("### Burette")
+
+        st.markdown(
+            f"""
+            <div style="
+            margin:auto;
+            width:55px;
+            height:240px;
+            border:3px solid #555;
+            border-radius:12px;
+            position:relative;
+            background:#f0f8ff;
+            overflow:hidden;">
+
+            <div style="
+            position:absolute;
+            bottom:0;
+            width:100%;
+            height:{max(0,100-progress*100)}%;
+            background:linear-gradient(#64b5f6,#1565c0);">
+            </div>
+
+            </div>
+            <p style="text-align:center;">
+            AgNO3 Solution
+            </p>
+            """,
+            unsafe_allow_html=True
+        )
+
+        st.metric("Volume Added", f"{volume:.2f} mL")
+
+    with col2:
+
+        st.markdown("### Conical Flask")
+
+        if progress < 1:
+            flask_color = "#eeeeee"
+        else:
+            flask_color = "#b85c42"
+
+        st.markdown(
+            f"""
+            <div style="
+            width:150px;
+            height:170px;
+            margin:auto;
+            clip-path:polygon(25% 0%,75% 0%,100% 90%,90% 100%,10% 100%,0% 90%);
+            background:{flask_color};
+            border:3px solid #555;
+            opacity:0.95;">
+            </div>
+            <p style="text-align:center;">
+            Water Sample + Indicator
+            </p>
+            """,
+            unsafe_allow_html=True
+        )
+
+    st.progress(progress)
+
+    st.markdown("---")
+
+    st.subheader("Control Panel")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        if st.button("💧 Add 0.1 mL AgNO3", use_container_width=True):
+
+            if volume < endpoint_volume:
+
+                st.session_state.added_volume = round(
+                    volume + 0.1, 2
+                )
+
+                st.session_state.titration_started = True
+
+                st.rerun()
+
+            else:
+                st.warning("Endpoint already reached.")
+
+    with col2:
+
+        if st.button("🔄 Reset Experiment", use_container_width=True):
+
+            st.session_state.added_volume = 0.0
+            st.session_state.titration_started = False
+
+            st.rerun()
+
+    # ENDPOINT DETECTION
+
+    if volume >= endpoint_volume:
+
+        st.success(
+            "🎉 Endpoint reached! "
+            "Permanent reddish-brown colour observed."
+        )
+
+        chloride = (
+            volume * normality * 35.45 * 1000
+        ) / sample_volume
+
+        st.metric(
+            "Calculated Chloride Content",
+            f"{chloride:.2f} mg/L"
+        )
+
+        st.session_state.chloride_result = chloride
 
     else:
-        st.success("Endpoint reached! Reddish-brown colour observed.")
+
+        st.info(
+            "Titration in progress. Continue adding AgNO3."
+        )
+
+    st.caption(
+        "Educational simulation: endpoint volume is predefined. "
+        "Use experimentally observed readings for actual calculations."
+    )
 
 # --------------------------------
 # CHEMISTRY QUIZ
