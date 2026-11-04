@@ -156,9 +156,10 @@ elif page == "Apparatus Setup":
 # TITRATION I
 # --------------------------------
 
+ 
 elif page == "Titration I - Standardization":
 
-    st.title("Titration I - Standardization of AgNO3")
+    st.title("🧪 Titration I - AgNO3 Standardization")
 
     st.subheader("Principle")
 
@@ -169,9 +170,11 @@ elif page == "Titration I - Standardization":
     AgNO3 + NaCl → AgCl + NaNO3
 
     Potassium chromate acts as the indicator.
+    At the endpoint, a permanent reddish-brown colour appears.
     """)
 
-    st.subheader("Enter Observation Values")
+    st.markdown("---")
+    st.subheader("Experiment Setup")
 
     nacl_n = st.number_input(
         "Normality of standard NaCl",
@@ -186,48 +189,133 @@ elif page == "Titration I - Standardization":
         value=10.0
     )
 
-    agno3_volume = st.number_input(
-        "Titre value of AgNO3 (mL)",
+    endpoint_volume = st.number_input(
+        "Simulated endpoint volume (mL)",
         min_value=0.1,
-        value=10.0,
-        key="standard_titre"
+        value=10.0
     )
 
-    if st.button("Calculate AgNO3 Normality"):
+    if "standard_added_volume" not in st.session_state:
+        st.session_state.standard_added_volume = 0.0
 
-        normality = (
-            nacl_n * nacl_volume
-        ) / agno3_volume
-
-        st.session_state.agno3_n = normality
-
-        st.success(
-            f"Standardized AgNO3 Normality: {normality:.5f} N"
-        )
-
-        st.info(
-            "Formula: N1V1 = N2V2"
-        )
+    volume = st.session_state.standard_added_volume
+    progress = min(volume / endpoint_volume, 1.0)
 
     st.markdown("---")
+    st.subheader("🔬 Virtual Laboratory")
 
-    st.subheader("Virtual Endpoint Simulator")
+    col1, col2 = st.columns(2)
 
-    volume = st.slider(
-        "Add AgNO3 (mL)",
-        min_value=0.0,
-        max_value=15.0,
-        value=0.0,
-        step=0.1,
-        key="standard_sim"
-    )
+    with col1:
+        st.markdown("### Burette")
 
-    if volume < agno3_volume:
-        st.info("Continue adding AgNO3. Endpoint not reached.")
-    else:
-        st.success(
-            "Endpoint reached! A permanent reddish-brown colour appears."
+        liquid_height = max(0, 100 - progress * 100)
+
+        st.markdown(
+            f"""
+            <div style="
+                margin:auto;
+                width:55px;
+                height:240px;
+                border:3px solid #555;
+                border-radius:12px;
+                position:relative;
+                background:#f0f8ff;
+                overflow:hidden;">
+                <div style="
+                    position:absolute;
+                    bottom:0;
+                    width:100%;
+                    height:{liquid_height}%;
+                    background:linear-gradient(#64b5f6,#1565c0);">
+                </div>
+            </div>
+            <p style="text-align:center;">AgNO3 Solution</p>
+            """,
+            unsafe_allow_html=True
         )
+
+        st.metric("AgNO3 Added", f"{volume:.2f} mL")
+
+    with col2:
+        st.markdown("### Conical Flask")
+
+        if progress >= 1:
+            flask_color = "#b85c42"
+        else:
+            flask_color = "#eeeeee"
+
+        st.markdown(
+            f"""
+            <div style="
+                width:150px;
+                height:170px;
+                margin:auto;
+                clip-path:polygon(
+                    25% 0%,75% 0%,100% 90%,
+                    90% 100%,10% 100%,0% 90%
+                );
+                background:{flask_color};
+                border:3px solid #555;">
+            </div>
+            <p style="text-align:center;">
+                NaCl + Potassium Chromate
+            </p>
+            """,
+            unsafe_allow_html=True
+        )
+
+    st.progress(progress)
+
+    st.markdown("---")
+    st.subheader("Control Panel")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("💧 Add 0.1 mL AgNO3",
+                     use_container_width=True):
+
+            if volume < endpoint_volume:
+                st.session_state.standard_added_volume = round(
+                    min(volume + 0.1, endpoint_volume), 2
+                )
+                st.rerun()
+            else:
+                st.warning("Endpoint already reached.")
+
+    with col2:
+        if st.button("🔄 Reset Experiment",
+                     use_container_width=True):
+
+            st.session_state.standard_added_volume = 0.0
+            st.rerun()
+
+    if volume >= endpoint_volume:
+
+        st.success(
+            "Endpoint reached! Permanent reddish-brown colour observed."
+        )
+
+        st.subheader("Calculation")
+
+        if st.button("Calculate AgNO3 Normality"):
+
+            agno3_normality = (
+                nacl_n * nacl_volume
+            ) / volume
+
+            st.session_state.agno3_n = agno3_normality
+
+            st.success(
+                f"Standardized AgNO3 Normality: "
+                f"{agno3_normality:.5f} N"
+            )
+
+            st.info("Formula: N1 × V1 = N2 × V2")
+
+    else:
+        st.info("Add AgNO3 gradually until the simulated endpoint.")
 
  
 # --------------------------------
