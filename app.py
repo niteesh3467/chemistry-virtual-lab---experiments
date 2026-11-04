@@ -399,6 +399,9 @@ elif page == "Titration II - Chloride Estimation":
         )
 
         st.session_state.chloride_result = chloride
+        st.session_state.sample_volume_used = sample_volume
+        st.session_state.titre_volume_used = volume
+        st.session_state.normality_used = normality
 
     else:
 
