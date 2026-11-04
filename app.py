@@ -513,84 +513,138 @@ elif page == "Chemistry Quiz":
 # --------------------------------
 # EXPERIMENT REPORT
 # --------------------------------
-
 elif page == "Experiment Report":
+    from io import BytesIO
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import cm
+    from reportlab.platypus import (
+        SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    )
 
-    st.title("Experiment Report Generator")
+    st.title("Experiment Report")
+    st.write("Generate and download your chloride estimation report.")
 
     name = st.text_input("Student Name")
-
-    registration = st.text_input(
-        "Registration Number"
-    )
-
+    reg_no = st.text_input("Registration Number")
     section = st.text_input("Section")
 
-    st.markdown("---")
+    chloride = st.session_state.get("chloride_result")
+    sample_volume = st.session_state.get("sample_volume_used", 10.0)
+    titre_volume = st.session_state.get("titre_volume_used", 7.5)
+    normality = st.session_state.get("normality_used", 0.1)
 
-    st.subheader("Experiment Results")
-
-    chloride = st.session_state.get(
-        "chloride_result",
-        None
-    )
-
-    if chloride is not None:
-        st.write(
-            f"Chloride Content: {chloride:.2f} mg/L"
-        )
+    if chloride is None:
+        st.warning("Complete Titration II first to generate your result.")
     else:
-        st.warning(
-            "Complete Titration II to calculate the result."
-        )
+        st.success(f"Chloride concentration: {chloride:.2f} mg/L")
 
-    st.write(
-        f"AgNO3 Normality: {st.session_state.agno3_n:.5f} N"
-    )
-
-    if st.button("Generate Report"):
-
-        if not name or not registration:
-            st.error("Enter your name and registration number.")
-
+    if st.button("Generate PDF Report"):
+        if not name.strip() or not reg_no.strip() or not section.strip():
+            st.error("Please enter your name, registration number, and section.")
         elif chloride is None:
-            st.error("Calculate chloride content first.")
-
+            st.error("Please complete Titration II before generating the report.")
         else:
+            buffer = BytesIO()
 
-            report = f"""
-CHEMISTRY VIRTUAL LABORATORY
-EXPERIMENT REPORT
-
-Student Name: {name}
-Registration Number: {registration}
-Section: {section}
-
-Experiment:
-Estimation of Chloride Content in Water
-using Mohr's Method.
-
-AgNO3 Normality:
-{st.session_state.agno3_n:.5f} N
-
-Chloride Content:
-{chloride:.2f} mg/L
-
-Date:
-{datetime.now().strftime("%d-%m-%Y")}
-
-Result:
-The chloride content of the given water
-sample was calculated using Mohr's method.
-
-End of Report.
-"""
-
-            st.download_button(
-                "Download Experiment Report",
-                data=report,
-                file_name="Chemistry_Lab_Report.txt",
-                mime="text/plain"
+            doc = SimpleDocTemplate(
+                buffer,
+                pagesize=A4,
+                rightMargin=2 * cm,
+                leftMargin=2 * cm,
+                topMargin=2 * cm,
+                bottomMargin=2 * cm
             )
 
-            st.success("Your report is ready!")
+            styles = getSampleStyleSheet()
+            story = []
+
+            title_style = ParagraphStyle(
+                "ReportTitle",
+                parent=styles["Title"],
+                textColor=colors.darkblue,
+                alignment=1,
+                spaceAfter=20
+            )
+
+            story.append(Paragraph("CHEMISTRY EXPERIMENT REPORT", title_style))
+            story.append(Paragraph("<b>Experiment:</b> Estimation of Chloride", styles["Normal"]))
+            story.append(Spacer(1, 15))
+
+            story.append(Paragraph("<b>Student Details</b>", styles["Heading2"]))
+
+            student_data = [
+                ["Name", name],
+                ["Registration Number", reg_no],
+                ["Section", section],
+            ]
+
+            student_table = Table(student_data, colWidths=[5 * cm, 11 * cm])
+            student_table.setStyle(TableStyle([
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                ("BACKGROUND", (0, 0), (0, -1), colors.lightblue),
+                ("PADDING", (0, 0), (-1, -1), 8),
+            ]))
+            story.append(student_table)
+            story.append(Spacer(1, 15))
+
+            sections = [
+                ("Aim", "To estimate the chloride concentration in the given water sample using silver nitrate titration."),
+                ("Principle", "Chloride ions react with silver ions to form a white precipitate of silver chloride. Potassium chromate is used as an indicator. At the endpoint, a reddish-brown colour appears."),
+                ("Reaction", "Ag+ + Cl- → AgCl (white precipitate)"),
+                ("Indicator reaction", "2Ag+ + CrO4 2- → Ag2CrO4 (reddish-brown precipitate)"),
+            ]
+
+            for heading, content in sections:
+                story.append(Paragraph(heading, styles["Heading2"]))
+                story.append(Paragraph(content, styles["BodyText"]))
+                story.append(Spacer(1, 10))
+
+            story.append(Paragraph("Observation Table", styles["Heading2"]))
+
+            observation_data = [
+                ["Parameter", "Value"],
+                ["Sample volume", f"{sample_volume} mL"],
+                ["AgNO3 normality", f"{normality} N"],
+                ["Titre volume", f"{titre_volume} mL"],
+            ]
+
+            observation_table = Table(observation_data, colWidths=[8 * cm, 8 * cm])
+            observation_table.setStyle(TableStyle([
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                ("BACKGROUND", (0, 0), (-1, 0), colors.lightblue),
+                ("PADDING", (0, 0), (-1, -1), 8),
+            ]))
+            story.append(observation_table)
+            story.append(Spacer(1, 15))
+
+            story.append(Paragraph("Calculation", styles["Heading2"]))
+            story.append(Paragraph(
+                "Chloride concentration (mg/L) = "
+                "(Titre volume × AgNO3 normality × 35.45 × 1000) "
+                "/ Sample volume",
+                styles["BodyText"]
+            ))
+            story.append(Spacer(1, 8))
+
+            story.append(Paragraph("Result", styles["Heading2"]))
+            story.append(Paragraph(
+                f"The chloride concentration in the given sample is "
+                f"<b>{chloride:.2f} mg/L</b>.",
+                styles["BodyText"]
+            ))
+
+            story.append(Spacer(1, 25))
+            story.append(Paragraph("End of Report", styles["Italic"]))
+
+            doc.build(story)
+            buffer.seek(0)
+
+            st.download_button(
+                label="Download PDF Report",
+                data=buffer,
+                file_name="Chloride_Estimation_Report.pdf",
+                mime="application/pdf"
+            )
+ 
